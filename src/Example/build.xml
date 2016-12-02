@@ -1,0 +1,192 @@
+<project name="Deployment Script" default="retrieve" basedir="." xmlns:sf="antlib:com.salesforce">
+
+    <property file="build.properties"/>
+    <property environment="env"/>
+
+    <macrodef  name="set.local.timestamp">
+      <sequential>
+        <tstamp>
+          <format property="current.time" pattern="yyyyMMdd-hhmm"/>
+        </tstamp>
+      </sequential>
+    </macrodef>
+
+    <target name="retrieve">
+      <set.local.timestamp/>            
+
+      <mkdir dir="Logs"/>            
+      <mkdir dir="Outbound"/>
+
+      <delete includeemptydirs="true">
+        <fileset dir="Outbound" includes="**/*"/>
+      </delete>
+
+      <record name="Logs/retrieve-${current.time}.log" action="start"/>
+      <sf:retrieve 
+        username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}" 
+        maxPoll="${sf.maxPoll}" 
+        retrieveTarget="Outbound" 
+        unpackaged="../Packages/${sf.default_pkgName}"
+      />
+      <record name="Logs/retrieve-${current.time}.log" action="stop"/>
+    </target>
+
+    <target name="deploy">
+      <sf:deploy username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}" 
+        maxPoll="${sf.maxPoll}" 
+        deployRoot="Inbound"
+        checkOnly="false"
+      />
+    </target>
+    
+    <target name="validate">
+      <set.timestamp/>            
+      <record name="Logs/validate-${current.time}.log" action="start"/>
+      <sf:deploy username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}" 
+        maxPoll="${sf.maxPoll}" 
+        deployRoot="Inbound"
+        testLevel="RunLocalTests"
+        checkOnly="true"
+      />
+      <record name="Logs/validate-${current.time}.log" action="stop"/>
+    </target>
+    
+    <!-- Retrieve the information of all items of a particular metadata type -->
+    <target name="listMetadata">
+      <set.local.timestamp/>            
+      <mkdir dir="ListMetaData"/>
+      <sf:listMetadata 
+        username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}" 
+        metadataType="${sf.metadataType}"
+        resultFilePath="ListMetaData/${sf.metadataType}-${current.time}.log"
+      />
+    </target>
+
+    <!-- Retrieve the information on all supported metadata type -->
+    <target name="describeMetadata">
+      <mkdir dir="Logs"/>      
+      <set.local.timestamp/>            
+      <sf:describeMetadata 
+        username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}"
+        resultFilePath="Logs/describeMetadata-${current.time}.log"
+      />
+    </target>
+
+    
+    <target name="copyEclipseToGit">
+      <copy todir="${git.dir}">
+        <fileset dir="${eclipse.dir}">
+            <modified>
+              <param name="cache.cachefile" value="localdev.cache"/>
+            </modified>
+        </fileset>
+      </copy>
+    </target>
+
+    <target name="copyOutboundToStorage">
+      <delete includeemptydirs="true">
+        <fileset dir="../Storage/Outbound" includes="**/*"/>
+      </delete>
+
+      <copy todir="../Storage/Outbound">
+        <fileset dir="Outbound" />
+      </copy>
+
+      <delete includeemptydirs="true">
+        <fileset dir="Outbound" includes="**/*"/>
+      </delete>
+    </target>
+
+    <target name="copyStorageToInbound">
+      <delete includeemptydirs="true">
+        <fileset dir="Inbound" includes="**/*"/>
+      </delete>
+
+      <copy todir="Inbound">
+        <fileset dir="../Storage/Outbound" />
+      </copy>
+
+      <delete includeemptydirs="true">
+        <fileset dir="../Storage/Outbound" includes="**/*"/>
+      </delete>
+    </target>
+
+
+    <target name="copyStorageToGit">
+      <copy todir="${git.dir}">
+        <fileset dir="../Storage/Outbound" />
+      </copy>
+
+      <delete includeemptydirs="true">
+        <fileset dir="../Storage/Outbound" includes="**/*"/>
+      </delete>
+    </target>
+
+
+
+    <target name="validateWithSomeTests">
+      <set.local.timestamp/>            
+      <record name="Logs/validate-${current.time}.log" action="start"/>
+      <sf:deploy username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}" 
+        maxPoll="${sf.maxPoll}" 
+        deployRoot="Inbound"
+        testLevel="RunSpecifiedTests"
+        checkOnly="true"
+      >
+      <runTest>AccountSelfBoardExtensionTest</runTest>
+      <runTest>ConfirmationControllerTest</runTest>
+      <runTest>PortalLeadTest</runTest>
+      <runTest>PortalLeadControllerTest</runTest>
+      <runTest>SelfBoardQueue_Test</runTest>
+      <runTest>SelfBoardTrialTriggerHandler_Test</runTest>
+      <runTest>SL_CustomerInfoComponentControllerTest</runTest>
+      <runTest>SL_ShippingMethodComponentControllerTest</runTest>
+      <runTest>SL_CustomPlaceOrderControllerTest</runTest>
+      <runTest>SLV_SilverOrderTest</runTest>
+      <runTest>SL_CustomerReviewComponentControllerTest</runTest>
+      <runTest>PortalController_Test</runTest>
+    </sf:deploy>
+      <record name="Logs/validate-${current.time}.log" action="stop"/>
+    </target>
+
+    <target name="deployWithSomeTests">
+      <set.local.timestamp/>            
+      <record name="Logs/validate-${current.time}.log" action="start"/>
+      <sf:deploy username="${sf.username}" 
+        password="${sf.password}" 
+        serverurl="${sf.serverurl}" 
+        maxPoll="${sf.maxPoll}" 
+        deployRoot="Inbound"
+        testLevel="RunSpecifiedTests"
+        checkOnly="false"
+      >
+      <runTest>AccountSelfBoardExtensionTest</runTest>
+      <runTest>ConfirmationControllerTest</runTest>
+      <runTest>PortalLeadTest</runTest>
+      <runTest>PortalLeadControllerTest</runTest>
+      <runTest>SelfBoardQueue_Test</runTest>
+      <runTest>SelfBoardTrialTriggerHandler_Test</runTest>
+      <runTest>SL_CustomerInfoComponentControllerTest</runTest>
+      <runTest>SL_ShippingMethodComponentControllerTest</runTest>
+      <runTest>SL_CustomPlaceOrderControllerTest</runTest>
+      <runTest>SLV_SilverOrderTest</runTest>
+      <runTest>SL_CustomerReviewComponentControllerTest</runTest>
+      <runTest>PortalController_Test</runTest>
+    </sf:deploy>
+      <record name="Logs/validate-${current.time}.log" action="stop"/>
+    </target>
+
+    
+</project>
